@@ -116,10 +116,10 @@ export function setup() {
         }
         const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
         completedRequests++;
-        const progress = Math.floor((completedRequests / totalRequests) * 100);
-        const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
-        const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
-        console.log(`${progressBar} ${progressText}`);
+        // const progress = Math.floor((completedRequests / totalRequests) * 100);
+        // const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
+        // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
+        // console.log(`${progressBar} ${progressText}`);
     });
 
     return relationships;
