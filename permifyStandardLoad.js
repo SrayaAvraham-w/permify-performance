@@ -37,17 +37,29 @@ const relationshipsGroups = [
         relation: "manager"
     },
     {
-        users: 2000,
-        entity: "site",
+        users: 15000,
+        entity: "subscription",
         entityPerUser: 1,
-        relation: "viewer"
+        relation: "manager"
     },
     {
         users: 5000,
         entity: "subscription",
         entityPerUser: 1,
+        relation: "viewer"
+    },
+    {
+        users: 200,
+        entity: "site",
+        entityPerUser: 1,
         relation: "manager"
-    }
+    },
+    {
+        users: 150,
+        entity: "site",
+        entityPerUser: 1,
+        relation: "viewer"
+    },
 ];
 
 export const options = {
@@ -55,8 +67,25 @@ export const options = {
         'http_req_duration{type:CHECK}': ['p(90) < 400'],
         'http_req_duration{type:LOOKUP}': ['p(90) < 400'],
         'http_req_duration{type:WRITE}': ['p(90) < 400'],
+        // 'checks{type:entity}': ['rate>0.8']
     },
     scenarios: {
+        checkPermission: {
+            executor: "constant-arrival-rate",
+            exec: "checkPermission",
+            preAllocatedVUs: 100,
+            duration: '1m',
+            rate: 1000,
+            timeUnit: '1m',
+        },
+        lookupEntity: {
+            executor: "constant-arrival-rate",
+            exec: "lookupEntity",
+            preAllocatedVUs: 50,
+            duration: '1m',
+            rate: 80,
+            timeUnit: '1m',
+        },
         writeRelationshipRandom: {
             executor: "constant-arrival-rate",
             exec: "writeRelationshipRandom",
@@ -72,23 +101,7 @@ export const options = {
             duration: '1m',
             rate: 10,
             timeUnit: '1m',
-        },
-        checkPermission: {
-            executor: "constant-arrival-rate",
-            exec: "checkPermission",
-            preAllocatedVUs: 100,
-            duration: '1m',
-            rate: 1000,
-            timeUnit: '1m',
-        },
-        lookupEntity: {
-            executor: "constant-arrival-rate",
-            exec: "lookupEntity",
-            preAllocatedVUs: 100,
-            duration: '1m',
-            rate: 100,
-            timeUnit: '1m',
-        },
+        }
     },
 };
 
@@ -233,6 +246,18 @@ export function lookupEntity(relationships) {
             return res.entity_ids.length === 0;
         },
     });
+
+    check(res, {
+        'is status 200': (r) => r.status === 200,
+        'entity > 0': (r) => {
+            const res = JSON.parse(r.body)
+            return res.entity_ids.length
+        },
+        'entity = 0': (r) => {
+            const res = JSON.parse(r.body)
+            return res.entity_ids.length === 0;
+        }
+    }, { type : "entity" });
 }
 
 // export function handleSummary(data) {
@@ -254,13 +279,13 @@ function getEntityIdsChunk(entity, chunkSize) {
 
 function getRangeIds(startId, endId, maxId) {
     const range = [];
-  
+
     for (let i = startId; i <= endId; i++) {
-      range.push(i < maxId ? i : i % maxId);
+        range.push(i < maxId ? i : i % maxId);
     }
-  
+
     return range;
-  }
+}
 
 function generateInitialData(usersSize, relation, entityType, entityPerUser) {
     const { user } = entities;
