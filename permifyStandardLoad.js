@@ -39,13 +39,13 @@ const relationshipsGroups = [
         relation: "manager"
     },
     {
-        users: 15000,
+        users: 1500,
         entity: "subscription",
         entityPerUser: 1,
         relation: "manager"
     },
     {
-        users: 5000,
+        users: 500,
         entity: "subscription",
         entityPerUser: 1,
         relation: "viewer"
@@ -63,6 +63,8 @@ const relationshipsGroups = [
         relation: "viewer"
     },
 ];
+
+const sum = { user: 0}
 
 export const options = {
     thresholds: {
@@ -137,9 +139,9 @@ export function setup() {
         // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
         // console.log(`${progressBar} ${progressText}`);
     });
-
-    // console.log(relationships)
-    return relationships;
+    console.log(relationships.length)
+    console.log(sum)
+    return sum;
 
 }
 
@@ -192,17 +194,26 @@ export function checkPermissionRandom() {
     checkCacheHit( JSON.parse(res.body) );
 }
 
-export function checkPermission(relationships) {
-    const rel = randomItem(relationships);
+export function checkPermission(sum) {
+    // const rel = randomItem(relationships);
+    const entity = randomItem(entitiesTypes);
     const requestBody = {
         metadata: {
             schema_version: "",
             depth: 100
         },
-        entity: rel.entity,
+        entity:{
+            type: entity,
+            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+        },
         permission: randomItem(actions),
-        subject: rel.subject
+        subject: {
+            type: "user",
+            //TODO sum all
+            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+        }
     };
+    console.log(requestBody)
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
     checkStatus( res );
     checkAllowed( JSON.parse(res.body) );
@@ -210,16 +221,20 @@ export function checkPermission(relationships) {
     checkCacheHit( JSON.parse(res.body) );
 }
 
-export function lookupEntity(relationships) {
-    const rel = randomItem(relationships);
+export function lookupEntity(sum) {
+    const entity = randomItem(entitiesTypes);
     const requestBody = {
         metadata: {
             schema_version: "",
             depth: 100
         },
-        entity_type: rel.entity.type,
+        entity_type: entity,
         permission: randomItem(actions),
-        subject: rel.subject
+        subject: {
+            type: "user",
+            //TODO sum all
+            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+        }
     };
     const res = http.post(baseUrl + "/permissions/lookup-entity", JSON.stringify(requestBody), { tags: { type: 'LOOKUP' } });
     // console.log(res)
@@ -272,7 +287,8 @@ function generateInitialData(usersSize, relation, entityType, entityPerUser) {
     // console.log(usersIds)
     user.currentId = Number(usersIds[usersIds.length -1]) + 1
     let initialData = [];
-
+    sum[entityType] = sum[entityType]? sum[entityType]+ (usersIds.length * entityPerUser) : usersIds.length * entityPerUser;
+    sum.user += usersIds.length
     usersIds.forEach(userId => {
         // let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
         const entity = entities[entityType]
