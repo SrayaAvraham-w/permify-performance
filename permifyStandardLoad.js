@@ -210,7 +210,7 @@ export function checkPermission(sum) {
         subject: {
             type: "user",
             //TODO sum all
-            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+            id: randomIntBetween(1, Math.min(sum.user, entities[entity].count)).toString()
         }
     };
     console.log(requestBody)
@@ -233,7 +233,7 @@ export function lookupEntity(sum) {
         subject: {
             type: "user",
             //TODO sum all
-            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+            id: randomIntBetween(1, Math.min(sum.user, entities[entity].count)).toString()
         }
     };
     const res = http.post(baseUrl + "/permissions/lookup-entity", JSON.stringify(requestBody), { tags: { type: 'LOOKUP' } });
