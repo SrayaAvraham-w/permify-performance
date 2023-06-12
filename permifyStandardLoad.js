@@ -15,23 +15,25 @@ const actions = ["edit", "view"];
 
 const entities = {
     user: {
-        ids: Array.from({ length: 50000 }, (_, i) => (i + 1).toString()),
-        // count: 5000,
-        currentId: 0
+        // ids: Array.from({ length: 50000 }, (_, i) => (i + 1).toString()),
+        count: 5000,
+        currentId: 1
     },
     site: {
-        ids: Array.from({ length: 300 }, (_, i) => (i + 1).toString()),
-        currentId: 0
+        // ids: Array.from({ length: 300 }, (_, i) => (i + 1).toString()),
+        count: 5000,
+        currentId: 1
     },
     subscription: {
-        ids: Array.from({ length: 15000 }, (_, i) => (i + 1).toString()),
-        currentId: 0
+        // ids: Array.from({ length: 15000 }, (_, i) => (i + 1).toString()),
+        count: 5000,
+        currentId: 1
     }
 }
 
 const relationshipsGroups = [
     {
-        users: 1000,
+        users: 10,
         entity: "subscription",
         entityPerUser: 2,
         relation: "manager"
@@ -67,7 +69,8 @@ export const options = {
         'http_req_duration{type:CHECK}': ['p(90) < 400'],
         'http_req_duration{type:LOOKUP}': ['p(90) < 400'],
         'http_req_duration{type:WRITE}': ['p(90) < 400'],
-        // 'checks{type:entity}': ['rate>0.8']
+        'checks{check:lookup}': ['rate>0.9'],
+        'checks{check:allowed}': ['rate>0.9']
     },
     scenarios: {
         checkPermission: {
@@ -135,9 +138,15 @@ export function setup() {
         // console.log(`${progressBar} ${progressText}`);
     });
 
+    // console.log(relationships)
     return relationships;
 
 }
+
+const checkStatus = (res ) => check(res, {'is status 200': (r) => r.status === 200}, { check : "status" });
+const checkAllowed = (res ) => check(res, {'is allowed': (r) => res.can === "RESULT_ALLOWED"}, { check : "allowed" });
+const checkDenied = (res ) => check(res, {'is denied': (r) => res.can === "RESULT_DENIED"}, { check : "denied" });
+const checkCacheHit = (res ) => check(res, {'is cache hit': (r) => res.metadata.check_count === 1}, { check : "cache" });
 
 export function writeRelationshipRandom() {
     const requestBody = {
@@ -176,21 +185,11 @@ export function checkPermissionRandom() {
         }
     };
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
-    check(res, {
-        'is status 200': (r) => r.status === 200,
-        'is allowed': (r) => {
-            const res = JSON.parse(r.body)
-            return res.can === "RESULT_ALLOWED"
-        },
-        'is denied': (r) => {
-            const res = JSON.parse(r.body)
-            return res.can === "RESULT_DENIED"
-        },
-        'is cache hit': (r) => {
-            const res = JSON.parse(r.body)
-            return res.metadata.check_count === 1
-        },
-    });
+
+    checkStatus( res );
+    checkAllowed( JSON.parse(res.body) );
+    checkDenied( JSON.parse(res.body) );
+    checkCacheHit( JSON.parse(res.body) );
 }
 
 export function checkPermission(relationships) {
@@ -205,21 +204,10 @@ export function checkPermission(relationships) {
         subject: rel.subject
     };
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
-    check(res, {
-        'is status 200': (r) => r.status === 200,
-        'is allowed': (r) => {
-            const res = JSON.parse(r.body)
-            return res.can === "RESULT_ALLOWED"
-        },
-        'is denied': (r) => {
-            const res = JSON.parse(r.body)
-            return res.can === "RESULT_DENIED"
-        },
-        'is cache hit': (r) => {
-            const res = JSON.parse(r.body)
-            return res.metadata.check_count === 1
-        },
-    });
+    checkStatus( res );
+    checkAllowed( JSON.parse(res.body) );
+    checkDenied( JSON.parse(res.body) );
+    checkCacheHit( JSON.parse(res.body) );
 }
 
 export function lookupEntity(relationships) {
@@ -235,8 +223,8 @@ export function lookupEntity(relationships) {
     };
     const res = http.post(baseUrl + "/permissions/lookup-entity", JSON.stringify(requestBody), { tags: { type: 'LOOKUP' } });
     // console.log(res)
+    checkStatus( res );
     check(res, {
-        'is status 200': (r) => r.status === 200,
         'entity > 0': (r) => {
             const res = JSON.parse(r.body)
             return res.entity_ids.length
@@ -245,19 +233,7 @@ export function lookupEntity(relationships) {
             const res = JSON.parse(r.body)
             return res.entity_ids.length === 0;
         },
-    });
-
-    check(res, {
-        'is status 200': (r) => r.status === 200,
-        'entity > 0': (r) => {
-            const res = JSON.parse(r.body)
-            return res.entity_ids.length
-        },
-        'entity = 0': (r) => {
-            const res = JSON.parse(r.body)
-            return res.entity_ids.length === 0;
-        }
-    }, { type : "entity" });
+    }, { check : "lookup" });
 }
 
 // export function handleSummary(data) {
@@ -287,19 +263,27 @@ function getRangeIds(startId, endId, maxId) {
     return range;
 }
 
+const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
+
 function generateInitialData(usersSize, relation, entityType, entityPerUser) {
     const { user } = entities;
-    let usersIds = getEntityIdsChunk(user, usersSize);
+    // let usersIds = getEntityIdsChunk(user, usersSize);
+    const usersIds = arrayRange(user.currentId, usersSize, user.count )
+    // console.log(usersIds)
+    user.currentId = Number(usersIds[usersIds.length -1]) + 1
     let initialData = [];
 
     usersIds.forEach(userId => {
-        let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
-
-        for (let index = 1; index <= entityPerUser; index++) {
+        // let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
+        const entity = entities[entityType]
+        const entitiesIds = arrayRange(entity.currentId, entityPerUser, entity.count )
+        entity.currentId = Number(entitiesIds[entitiesIds.length -1]) + 1
+        // console.log(entitiesIds)
+        for (let index = 0; index < entityPerUser; index++) {
             let data = {
                 entity: {
                     type: entityType,
-                    id: entitiesIds[index - 1]
+                    id: entitiesIds[index]
                 },
                 relation: relation,
                 subject: {
