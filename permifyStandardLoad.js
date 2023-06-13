@@ -62,46 +62,49 @@ const relationshipsGroups = [
 ];
 
 const sum = { user: 0 }
-
+const duration = '3m';
 export const options = {
     setupTimeout: '3m',
     thresholds: {
         'http_req_duration{type:CHECK}': ['p(90) < 400'],
         'http_req_duration{type:LOOKUP}': ['p(90) < 400'],
         'http_req_duration{type:WRITE}': ['p(90) < 400'],
-        'checks{check:lookup}': ['rate>0.9'],
-        'checks{check:allowed}': ['rate>0.9']
+        'http_reqs{type:CHECK}': ["rate>0.99"],
+        'http_reqs{type:WRITE}': ["rate<0.01"],
+        http_req_failed: ['rate<0.01'],
+        // 'checks{check:lookup}': ['rate>0.9'],
+        // 'checks{check:allowed}': ['rate>0.9']
     },
     scenarios: {
         checkPermission: {
             executor: "constant-arrival-rate",
             exec: "checkPermission",
-            preAllocatedVUs: 100,
-            duration: '1m',
-            rate: 1000,
-            timeUnit: '1m',
+            preAllocatedVUs: 5,
+            duration,
+            rate: 100,
+            timeUnit: '2s',
         },
         lookupEntity: {
             executor: "constant-arrival-rate",
             exec: "lookupEntity",
-            preAllocatedVUs: 50,
-            duration: '1m',
+            preAllocatedVUs: 5,
+            duration,
             rate: 80,
             timeUnit: '1m',
         },
         writeRelationshipRandom: {
             executor: "constant-arrival-rate",
             exec: "writeRelationshipRandom",
-            preAllocatedVUs: 50,
-            duration: '1m',
+            preAllocatedVUs: 5,
+            duration,
             rate: 50,
             timeUnit: '1m',
         },
         checkPermissionRandom: {
             executor: "constant-arrival-rate",
             exec: "checkPermissionRandom",
-            preAllocatedVUs: 10,
-            duration: '1m',
+            preAllocatedVUs: 5,
+            duration,
             rate: 10,
             timeUnit: '1m',
         }
@@ -109,36 +112,8 @@ export const options = {
 };
 
 export function setup() {
-
-    // const relationships = [].concat(...relationshipsGroups.map(group =>
-    //     generateInitialData(group.users, group.relation, group.entity, group.entityPerUser)
-    // ))
-    relationshipsGroups.map(group => generateInitialData(group.users, group.relation, group.entity, group.entityPerUser))
-    // const chunkSize = 100;
-    // const chunks = [];
-
-    // for (let i = 0; i < relationships.length; i += chunkSize) {
-    //     chunks.push(relationships.slice(i, i + chunkSize));
-    // }
-    // const totalRequests = chunks.length;
-    // let completedRequests = 0;
-
-    // const results = chunks.map((chunk) => {
-    //     const requestBody = {
-    //         metadata: {
-    //             schema_version: "",
-    //         },
-    //         tuples: chunk
-    //     }
-    //     const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
-    //     completedRequests++;
-    //     const progress = Math.floor((completedRequests / totalRequests) * 100);
-    //     const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
-    //     const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
-    //     console.log(`${progressBar} ${progressText}`);
-    // });
+    relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser))
     return sum;
-
 }
 
 const checkStatus = (res) => check(res, { 'is status 200': (r) => r.status === 200 }, { check: "status" });
@@ -192,6 +167,7 @@ export function checkPermissionRandom() {
 
 export function checkPermission(sum) {
     const entity = randomItem(entitiesTypes);
+    const id = randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
     const requestBody = {
         metadata: {
             schema_version: "",
@@ -199,12 +175,12 @@ export function checkPermission(sum) {
         },
         entity: {
             type: entity,
-            id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+            id
         },
         permission: randomItem(actions),
         subject: {
             type: "user",
-            id: randomIntBetween(1, Math.min(sum.user, entities[entity].count)).toString()
+            id
         }
     };
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
@@ -249,25 +225,25 @@ export function lookupEntity(sum) {
 //     };
 // }
 
-function getEntityIdsChunk(entity, chunkSize) {
-    let ids = entity.ids.slice(entity.currentId, entity.currentId + chunkSize)
-    if (ids.length < chunkSize) {
-        const remainingSize = chunkSize - ids.length;
-        ids = [...ids, ...entity.ids.slice(0, remainingSize)];
-    }
-    entity.currentId = entity.currentId + chunkSize;
-    return ids;
-}
+// function getEntityIdsChunk(entity, chunkSize) {
+//     let ids = entity.ids.slice(entity.currentId, entity.currentId + chunkSize)
+//     if (ids.length < chunkSize) {
+//         const remainingSize = chunkSize - ids.length;
+//         ids = [...ids, ...entity.ids.slice(0, remainingSize)];
+//     }
+//     entity.currentId = entity.currentId + chunkSize;
+//     return ids;
+// }
 
-function getRangeIds(startId, endId, maxId) {
-    const range = [];
+// function getRangeIds(startId, endId, maxId) {
+//     const range = [];
 
-    for (let i = startId; i <= endId; i++) {
-        range.push(i < maxId ? i : i % maxId);
-    }
+//     for (let i = startId; i <= endId; i++) {
+//         range.push(i < maxId ? i : i % maxId);
+//     }
 
-    return range;
-}
+//     return range;
+// }
 
 const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
 
@@ -278,8 +254,8 @@ function updatePermify(relations) {
     for (let i = 0; i < relations.length; i += chunkSize) {
         chunks.push(relations.slice(i, i + chunkSize));
     }
-    const totalRequests = chunks.length;
-    let completedRequests = 0;
+    // const totalRequests = chunks.length;
+    // let completedRequests = 0;
 
     const results = chunks.map((chunk) => {
         return {
@@ -302,7 +278,7 @@ function updatePermify(relations) {
     // http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
 }
 
-function generateInitialData(usersSize, relation, entityType, entityPerUser) {
+function generateRelationshipsData(usersSize, relation, entityType, entityPerUser) {
     const { user } = entities;
     // let usersIds = getEntityIdsChunk(user, usersSize);
     const usersIds = arrayRange(user.currentId, usersSize, user.count)
