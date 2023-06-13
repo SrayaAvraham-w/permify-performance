@@ -15,58 +15,56 @@ const actions = ["edit", "view"];
 
 const entities = {
     user: {
-        // ids: Array.from({ length: 50000 }, (_, i) => (i + 1).toString()),
-        count: 5000,
+        count: 500000,
         currentId: 1
     },
     site: {
-        // ids: Array.from({ length: 300 }, (_, i) => (i + 1).toString()),
-        count: 5000,
+        count: 3000,
         currentId: 1
     },
     subscription: {
-        // ids: Array.from({ length: 15000 }, (_, i) => (i + 1).toString()),
-        count: 5000,
+        count: 150000,
         currentId: 1
     }
 }
 
 const relationshipsGroups = [
     {
-        users: 10,
+        users: 150000,
+        entity: "subscription",
+        entityPerUser: 1,
+        relation: "manager"
+    },
+    {
+        users: 15000,
         entity: "subscription",
         entityPerUser: 2,
         relation: "manager"
     },
     {
-        users: 1500,
-        entity: "subscription",
-        entityPerUser: 1,
-        relation: "manager"
-    },
-    {
-        users: 500,
+        users: 5000,
         entity: "subscription",
         entityPerUser: 1,
         relation: "viewer"
     },
     {
-        users: 200,
+        users: 3000,
         entity: "site",
         entityPerUser: 1,
         relation: "manager"
     },
     {
-        users: 150,
+        users: 1500,
         entity: "site",
         entityPerUser: 1,
         relation: "viewer"
     },
 ];
 
-const sum = { user: 0}
+const sum = { user: 0 }
 
 export const options = {
+    setupTimeout: '3m',
     thresholds: {
         'http_req_duration{type:CHECK}': ['p(90) < 400'],
         'http_req_duration{type:LOOKUP}': ['p(90) < 400'],
@@ -112,43 +110,41 @@ export const options = {
 
 export function setup() {
 
-    const relationships = [].concat(...relationshipsGroups.map(group =>
-        generateInitialData(group.users, group.relation, group.entity, group.entityPerUser)
-    ))
+    // const relationships = [].concat(...relationshipsGroups.map(group =>
+    //     generateInitialData(group.users, group.relation, group.entity, group.entityPerUser)
+    // ))
+    relationshipsGroups.map(group => generateInitialData(group.users, group.relation, group.entity, group.entityPerUser))
+    // const chunkSize = 100;
+    // const chunks = [];
 
-    const chunkSize = 100;
-    const chunks = [];
+    // for (let i = 0; i < relationships.length; i += chunkSize) {
+    //     chunks.push(relationships.slice(i, i + chunkSize));
+    // }
+    // const totalRequests = chunks.length;
+    // let completedRequests = 0;
 
-    for (let i = 0; i < relationships.length; i += chunkSize) {
-        chunks.push(relationships.slice(i, i + chunkSize));
-    }
-    const totalRequests = chunks.length;
-    let completedRequests = 0;
-
-    const results = chunks.map((chunk) => {
-        const requestBody = {
-            metadata: {
-                schema_version: "",
-            },
-            tuples: chunk
-        }
-        const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
-        completedRequests++;
-        // const progress = Math.floor((completedRequests / totalRequests) * 100);
-        // const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
-        // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
-        // console.log(`${progressBar} ${progressText}`);
-    });
-    console.log(relationships.length)
-    console.log(sum)
+    // const results = chunks.map((chunk) => {
+    //     const requestBody = {
+    //         metadata: {
+    //             schema_version: "",
+    //         },
+    //         tuples: chunk
+    //     }
+    //     const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
+    //     completedRequests++;
+    //     const progress = Math.floor((completedRequests / totalRequests) * 100);
+    //     const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
+    //     const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
+    //     console.log(`${progressBar} ${progressText}`);
+    // });
     return sum;
 
 }
 
-const checkStatus = (res ) => check(res, {'is status 200': (r) => r.status === 200}, { check : "status" });
-const checkAllowed = (res ) => check(res, {'is allowed': (r) => res.can === "RESULT_ALLOWED"}, { check : "allowed" });
-const checkDenied = (res ) => check(res, {'is denied': (r) => res.can === "RESULT_DENIED"}, { check : "denied" });
-const checkCacheHit = (res ) => check(res, {'is cache hit': (r) => res.metadata.check_count === 1}, { check : "cache" });
+const checkStatus = (res) => check(res, { 'is status 200': (r) => r.status === 200 }, { check: "status" });
+const checkAllowed = (res) => check(res, { 'is allowed': (r) => res.can === "RESULT_ALLOWED" }, { check: "allowed" });
+const checkDenied = (res) => check(res, { 'is denied': (r) => res.can === "RESULT_DENIED" }, { check: "denied" });
+const checkCacheHit = (res) => check(res, { 'is cache hit': (r) => res.metadata.check_count === 1 }, { check: "cache" });
 
 export function writeRelationshipRandom() {
     const requestBody = {
@@ -188,37 +184,34 @@ export function checkPermissionRandom() {
     };
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
 
-    checkStatus( res );
-    checkAllowed( JSON.parse(res.body) );
-    checkDenied( JSON.parse(res.body) );
-    checkCacheHit( JSON.parse(res.body) );
+    checkStatus(res);
+    checkAllowed(JSON.parse(res.body));
+    checkDenied(JSON.parse(res.body));
+    checkCacheHit(JSON.parse(res.body));
 }
 
 export function checkPermission(sum) {
-    // const rel = randomItem(relationships);
     const entity = randomItem(entitiesTypes);
     const requestBody = {
         metadata: {
             schema_version: "",
             depth: 100
         },
-        entity:{
+        entity: {
             type: entity,
             id: randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
         },
         permission: randomItem(actions),
         subject: {
             type: "user",
-            //TODO sum all
             id: randomIntBetween(1, Math.min(sum.user, entities[entity].count)).toString()
         }
     };
-    console.log(requestBody)
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
-    checkStatus( res );
-    checkAllowed( JSON.parse(res.body) );
-    checkDenied( JSON.parse(res.body) );
-    checkCacheHit( JSON.parse(res.body) );
+    checkStatus(res);
+    checkAllowed(JSON.parse(res.body));
+    checkDenied(JSON.parse(res.body));
+    checkCacheHit(JSON.parse(res.body));
 }
 
 export function lookupEntity(sum) {
@@ -232,13 +225,11 @@ export function lookupEntity(sum) {
         permission: randomItem(actions),
         subject: {
             type: "user",
-            //TODO sum all
             id: randomIntBetween(1, Math.min(sum.user, entities[entity].count)).toString()
         }
     };
     const res = http.post(baseUrl + "/permissions/lookup-entity", JSON.stringify(requestBody), { tags: { type: 'LOOKUP' } });
-    // console.log(res)
-    checkStatus( res );
+    checkStatus(res);
     check(res, {
         'entity > 0': (r) => {
             const res = JSON.parse(r.body)
@@ -248,7 +239,7 @@ export function lookupEntity(sum) {
             const res = JSON.parse(r.body)
             return res.entity_ids.length === 0;
         },
-    }, { check : "lookup" });
+    }, { check: "lookup" });
 }
 
 // export function handleSummary(data) {
@@ -280,21 +271,50 @@ function getRangeIds(startId, endId, maxId) {
 
 const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
 
+function updatePermify(relations) {
+    const chunkSize = 100;
+    const chunks = [];
+
+    for (let i = 0; i < relations.length; i += chunkSize) {
+        chunks.push(relations.slice(i, i + chunkSize));
+    }
+    const totalRequests = chunks.length;
+    let completedRequests = 0;
+
+    const results = chunks.map((chunk) => {
+        return {
+            method: 'POST',
+            url: baseUrl + "/relationships/write",
+            body: JSON.stringify({
+                metadata: {
+                    schema_version: "",
+                },
+                tuples: chunk
+            })
+        }
+    });
+    http.batch(results)
+    // completedRequests++;
+    // const progress = Math.floor((completedRequests / totalRequests) * 100);
+    // const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
+    // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
+    // console.log(`${progressBar} ${progressText}`);
+    // http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
+}
+
 function generateInitialData(usersSize, relation, entityType, entityPerUser) {
     const { user } = entities;
     // let usersIds = getEntityIdsChunk(user, usersSize);
-    const usersIds = arrayRange(user.currentId, usersSize, user.count )
-    // console.log(usersIds)
-    user.currentId = Number(usersIds[usersIds.length -1]) + 1
+    const usersIds = arrayRange(user.currentId, usersSize, user.count)
+    user.currentId = Number(usersIds[usersIds.length - 1]) + 1
     let initialData = [];
-    sum[entityType] = sum[entityType]? sum[entityType]+ (usersIds.length * entityPerUser) : usersIds.length * entityPerUser;
+    sum[entityType] = sum[entityType] ? sum[entityType] + (usersIds.length * entityPerUser) : usersIds.length * entityPerUser;
     sum.user += usersIds.length
     usersIds.forEach(userId => {
         // let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
         const entity = entities[entityType]
-        const entitiesIds = arrayRange(entity.currentId, entityPerUser, entity.count )
-        entity.currentId = Number(entitiesIds[entitiesIds.length -1]) + 1
-        // console.log(entitiesIds)
+        const entitiesIds = arrayRange(entity.currentId, entityPerUser, entity.count)
+        entity.currentId = Number(entitiesIds[entitiesIds.length - 1]) + 1
         for (let index = 0; index < entityPerUser; index++) {
             let data = {
                 entity: {
@@ -312,6 +332,6 @@ function generateInitialData(usersSize, relation, entityType, entityPerUser) {
             initialData.push(data);
         }
     });
-
-    return initialData;
+    updatePermify(initialData);
+    // return initialData;
 }
