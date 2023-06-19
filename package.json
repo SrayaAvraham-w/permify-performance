@@ -1,5 +1,13 @@
 {
   "dependencies": {
+    "dotenv": "^16.3.1",
     "pg": "^8.11.0"
+  },
+  "scripts": {
+    "reset": "node ./clearData.js",
+    "k6-login": "k6 login cloud --token $(grep K6_CLOUD_TOKEN .env | cut -d '=' -f2)",
+    "pretest": "npm run reset && npm run k6-login",
+    "test:standart": "npm run pretest && k6 run -e PERMIFY_HOST=$(grep PERMIFY_HOST .env | cut -d '=' -f2) -e CONFIG_FILE=$(pwd)/standartConfig.js permifyTest.js",
+    "test:stress": "npm run pretest && k6 run -e PERMIFY_HOST=$(grep PERMIFY_HOST .env | cut -d '=' -f2) -e CONFIG_FILE=$(pwd)/stressConfig.js permifyTest.js"
   }
 }

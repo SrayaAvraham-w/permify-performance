@@ -4,114 +4,44 @@ import {
     randomIntBetween,
     randomItem,
 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
-// import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
+
+const loadConfig = () => {
+    return require(`${__ENV.CONFIG_FILE}`);
+}
+
+const { entitiesTypes, relations, actions, entities, relationshipsGroups, scenarios, testName } = loadConfig();
 
 const tenant = "loadTest";
 const host = "http://localhost:3476";
-const baseUrl = `${__ENV.HOST || host}/v1/tenants/${tenant}`;
-const entitiesTypes = ["site", "subscription"];
-const relations = ["viewer", "manager"];
-const actions = ["edit", "view"];
-
-const entities = {
-    user: {
-        count: 500000,
-        currentId: 1
-    },
-    site: {
-        count: 3000,
-        currentId: 1
-    },
-    subscription: {
-        count: 150000,
-        currentId: 1
-    }
-}
-
-const relationshipsGroups = [
-    {
-        users: 150000,
-        entity: "subscription",
-        entityPerUser: 1,
-        relation: "manager"
-    },
-    {
-        users: 15000,
-        entity: "subscription",
-        entityPerUser: 2,
-        relation: "manager"
-    },
-    {
-        users: 5000,
-        entity: "subscription",
-        entityPerUser: 1,
-        relation: "viewer"
-    },
-    {
-        users: 3000,
-        entity: "site",
-        entityPerUser: 1,
-        relation: "manager"
-    },
-    {
-        users: 1500,
-        entity: "site",
-        entityPerUser: 1,
-        relation: "viewer"
-    },
-];
+const baseUrl = `${__ENV.PERMIFY_HOST || host}/v1/tenants/${tenant}`;
 
 const sum = { user: 0 }
-const duration = '3m';
+
 export const options = {
-    setupTimeout: '3m',
+    ext: {
+        loadimpact: {
+            projectID: '3645457',
+            name: testName,
+        },
+    },
+    setupTimeout: '10m',
     thresholds: {
         'http_req_duration{type:CHECK}': ['p(90) < 400'],
         'http_req_duration{type:LOOKUP}': ['p(90) < 400'],
         'http_req_duration{type:WRITE}': ['p(90) < 400'],
-        'http_reqs{type:CHECK}': ["rate>0.99"],
-        'http_reqs{type:WRITE}': ["rate<0.01"],
-        http_req_failed: ['rate<0.01'],
+        'http_req_failed{type:CHECK}': ["rate<0.01"],
+        'http_req_failed{type:WRITE}': ["rate<0.01"],
+        'http_req_failed{type:LOOKUP}': ["rate<0.01"],
+        // http_req_failed: ['rate<0.01'],
         // 'checks{check:lookup}': ['rate>0.9'],
-        // 'checks{check:allowed}': ['rate>0.9']
+        // 'checks{check:allowed}': ['rate<0.6']
     },
-    scenarios: {
-        checkPermission: {
-            executor: "constant-arrival-rate",
-            exec: "checkPermission",
-            preAllocatedVUs: 5,
-            duration,
-            rate: 100,
-            timeUnit: '2s',
-        },
-        lookupEntity: {
-            executor: "constant-arrival-rate",
-            exec: "lookupEntity",
-            preAllocatedVUs: 5,
-            duration,
-            rate: 80,
-            timeUnit: '1m',
-        },
-        writeRelationshipRandom: {
-            executor: "constant-arrival-rate",
-            exec: "writeRelationshipRandom",
-            preAllocatedVUs: 5,
-            duration,
-            rate: 50,
-            timeUnit: '1m',
-        },
-        checkPermissionRandom: {
-            executor: "constant-arrival-rate",
-            exec: "checkPermissionRandom",
-            preAllocatedVUs: 5,
-            duration,
-            rate: 10,
-            timeUnit: '1m',
-        }
-    },
+    scenarios
 };
 
 export function setup() {
+    console.log({ baseUrl, testName });
     relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser))
     return sum;
 }
@@ -138,7 +68,7 @@ export function writeRelationshipRandom() {
             },
         }],
     };
-    http.post(baseUrl + "/relationships/write", requestBody, { tags: { type: 'WRITE' } });
+    const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody), { tags: { type: 'WRITE' } });
 }
 
 export function checkPermissionRandom() {
@@ -158,11 +88,33 @@ export function checkPermissionRandom() {
         }
     };
     const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
-
+    // console.log(res)
     checkStatus(res);
     checkAllowed(JSON.parse(res.body));
     checkDenied(JSON.parse(res.body));
     checkCacheHit(JSON.parse(res.body));
+}
+
+export function deleteRelationship() {
+    const entity = randomItem(entitiesTypes);
+    const id = randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
+    const requestBody = {
+        metadata: {
+            schema_version: "",
+        },
+        filter: {
+            entity: {
+                type: entity,
+                ids: [id],
+            },
+            relation: randomItem(relations),
+            subject: {
+                type: "user",
+                ids: [id],
+            },
+        },
+    };
+    const res = http.post(baseUrl + "/relationships/delete", JSON.stringify(requestBody), { tags: { type: 'WRITE' } });
 }
 
 export function checkPermission(sum) {
@@ -247,15 +199,13 @@ export function lookupEntity(sum) {
 
 const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
 
-function updatePermify(relations) {
+function updatePermify(entityType, relation, entityPerUser, relationships) {
     const chunkSize = 100;
     const chunks = [];
 
-    for (let i = 0; i < relations.length; i += chunkSize) {
-        chunks.push(relations.slice(i, i + chunkSize));
+    for (let i = 0; i < relationships.length; i += chunkSize) {
+        chunks.push(relationships.slice(i, i + chunkSize));
     }
-    // const totalRequests = chunks.length;
-    // let completedRequests = 0;
 
     const results = chunks.map((chunk) => {
         return {
@@ -269,13 +219,24 @@ function updatePermify(relations) {
             })
         }
     });
-    http.batch(results)
+
+    const batchSize = 50;
+    const totalResults = results.length;
+    let completedResults = 0;
+    for (let i = 0; i < results.length; i += batchSize) {
+        const batch = results.slice(i, i + batchSize);
+        http.batch(batch);
+
+        completedResults += batch.length;
+        const progress = Math.floor((completedResults / totalResults) * 100);
+        console.log(`User ${relation} on ${entityPerUser} ${entityType} Progress: ${progress}%`);
+    }
+
     // completedRequests++;
     // const progress = Math.floor((completedRequests / totalRequests) * 100);
     // const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
     // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
     // console.log(`${progressBar} ${progressText}`);
-    // http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody));
 }
 
 function generateRelationshipsData(usersSize, relation, entityType, entityPerUser) {
@@ -308,6 +269,6 @@ function generateRelationshipsData(usersSize, relation, entityType, entityPerUse
             initialData.push(data);
         }
     });
-    updatePermify(initialData);
+    updatePermify(entityType, relation, entityPerUser, initialData);
     // return initialData;
 }
