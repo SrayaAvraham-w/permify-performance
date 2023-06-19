@@ -1,6 +1,6 @@
 
 const duration = '3m';
-export const testName = "Stress Test";
+export const testName = "Stress";
 export const entitiesTypes = ["site", "subscription"];
 export const relations = ["viewer", "manager"];
 export const actions = ["edit", "view"];
@@ -22,31 +22,31 @@ export const entities = {
 
 export const relationshipsGroups = [
     {
-        users: 1500000,
-        entity: "subscription",
-        entityPerUser: 1,
-        relation: "manager"
-    },
-    {
         users: 150000,
         entity: "subscription",
-        entityPerUser: 2,
-        relation: "manager"
-    },
-    {
-        users: 50000,
-        entity: "subscription",
-        entityPerUser: 1,
-        relation: "viewer"
-    },
-    {
-        users: 30000,
-        entity: "site",
         entityPerUser: 1,
         relation: "manager"
     },
     {
         users: 15000,
+        entity: "subscription",
+        entityPerUser: 2,
+        relation: "manager"
+    },
+    {
+        users: 5000,
+        entity: "subscription",
+        entityPerUser: 1,
+        relation: "viewer"
+    },
+    {
+        users: 3000,
+        entity: "site",
+        entityPerUser: 1,
+        relation: "manager"
+    },
+    {
+        users: 1500,
         entity: "site",
         entityPerUser: 1,
         relation: "viewer"
@@ -55,12 +55,17 @@ export const relationshipsGroups = [
 
 export const scenarios = {
     checkPermission: {
-        executor: "constant-arrival-rate",
+        executor: "ramping-arrival-rate",
         exec: "checkPermission",
         preAllocatedVUs: 5,
-        duration,
-        rate: 100,
+        startRate: 100,
         timeUnit: '2s',
+        stages: [
+            { target: 300, duration: '30s' },
+            { target: 600, duration: '90s' },
+            { target: 700, duration: '30s' },
+            { target: 60, duration: '1m' },
+          ],
     },
     lookupEntity: {
         executor: "constant-arrival-rate",

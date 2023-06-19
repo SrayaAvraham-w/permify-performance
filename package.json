@@ -1,13 +1,20 @@
 {
+  "type": "module",
   "dependencies": {
+    "axios": "^1.4.0",
+    "cross-var": "^1.1.0",
     "dotenv": "^16.3.1",
+    "dotenv-cli": "^7.2.1",
     "pg": "^8.11.0"
   },
   "scripts": {
-    "reset": "node ./clearData.js",
+    "reset": "node ./clearData.cjs",
+    "init": "node ./initData.js",
     "k6-login": "k6 login cloud --token $(grep K6_CLOUD_TOKEN .env | cut -d '=' -f2)",
-    "pretest": "npm run reset && npm run k6-login",
-    "test:standart": "npm run pretest && k6 run -e PERMIFY_HOST=$(grep PERMIFY_HOST .env | cut -d '=' -f2) -e CONFIG_FILE=$(pwd)/standartConfig.js permifyTest.js",
-    "test:stress": "npm run pretest && k6 run -e PERMIFY_HOST=$(grep PERMIFY_HOST .env | cut -d '=' -f2) -e CONFIG_FILE=$(pwd)/stressConfig.js permifyTest.js"
+    "pretest": "npm run reset && npm run init",
+    "test:dev:standart": "dotenv -e .env.standart -e .env.development -- cross-var npm run pretest && dotenv -e .env.standart -e .env.development -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js",
+    "test:dev:stress": "dotenv -e .env.stress -e .env.development -- cross-var npm run pretest && dotenv -e .env.stress -e .env.development -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% permifyTest.js",
+    "test:local:standart": "dotenv -e .env.standart npm run pretest && dotenv -e .env.standart -- cross-var k6 run -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js",
+    "test:local:stress": "dotenv -e .env.stress npm run pretest && dotenv -e .env.stress -- cross-var k6 run -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js"
   }
 }

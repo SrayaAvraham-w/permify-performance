@@ -1,6 +1,6 @@
 const duration = '1m';
 
-export const testName = "Load Test";
+export const testName = "standart";
 export const entitiesTypes = ["site", "subscription"];
 export const relations = ["viewer", "manager"];
 export const actions = ["edit", "view"];

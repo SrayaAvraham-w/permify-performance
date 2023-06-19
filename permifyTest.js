@@ -6,7 +6,9 @@ import {
 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
 
+let sum;
 const loadConfig = () => {
+    sum = require(`${__ENV.SUMMARY_FILE}`).default;
     return require(`${__ENV.CONFIG_FILE}`);
 }
 
@@ -16,7 +18,7 @@ const tenant = "loadTest";
 const host = "http://localhost:3476";
 const baseUrl = `${__ENV.PERMIFY_HOST || host}/v1/tenants/${tenant}`;
 
-const sum = { user: 0 }
+
 
 export const options = {
     ext: {
@@ -42,7 +44,7 @@ export const options = {
 
 export function setup() {
     console.log({ baseUrl, testName });
-    relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser))
+    // relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser))
     return sum;
 }
 
@@ -50,50 +52,6 @@ const checkStatus = (res) => check(res, { 'is status 200': (r) => r.status === 2
 const checkAllowed = (res) => check(res, { 'is allowed': (r) => res.can === "RESULT_ALLOWED" }, { check: "allowed" });
 const checkDenied = (res) => check(res, { 'is denied': (r) => res.can === "RESULT_DENIED" }, { check: "denied" });
 const checkCacheHit = (res) => check(res, { 'is cache hit': (r) => res.metadata.check_count === 1 }, { check: "cache" });
-
-export function writeRelationshipRandom() {
-    const requestBody = {
-        metadata: {
-            schema_version: "",
-        },
-        tuples: [{
-            entity: {
-                type: randomItem(entitiesTypes),
-                id: randomIntBetween(1, 1000000).toString(),
-            },
-            relation: randomItem(relations),
-            subject: {
-                type: "user",
-                id: randomIntBetween(1, 1000000).toString(),
-            },
-        }],
-    };
-    const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody), { tags: { type: 'WRITE' } });
-}
-
-export function checkPermissionRandom() {
-    const requestBody = {
-        metadata: {
-            schema_version: "",
-            depth: 100
-        },
-        entity: {
-            type: randomItem(entitiesTypes),
-            id: randomIntBetween(1, 1000000).toString(),
-        },
-        permission: randomItem(actions),
-        subject: {
-            type: "user",
-            id: randomIntBetween(1, 1000000).toString(),
-        }
-    };
-    const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
-    // console.log(res)
-    checkStatus(res);
-    checkAllowed(JSON.parse(res.body));
-    checkDenied(JSON.parse(res.body));
-    checkCacheHit(JSON.parse(res.body));
-}
 
 export function deleteRelationship() {
     const entity = randomItem(entitiesTypes);
@@ -170,6 +128,49 @@ export function lookupEntity(sum) {
     }, { check: "lookup" });
 }
 
+export function writeRelationshipRandom() {
+    const requestBody = {
+        metadata: {
+            schema_version: "",
+        },
+        tuples: [{
+            entity: {
+                type: randomItem(entitiesTypes),
+                id: randomIntBetween(1, 1000000).toString(),
+            },
+            relation: randomItem(relations),
+            subject: {
+                type: "user",
+                id: randomIntBetween(1, 1000000).toString(),
+            },
+        }],
+    };
+    const res = http.post(baseUrl + "/relationships/write", JSON.stringify(requestBody), { tags: { type: 'WRITE' } });
+}
+
+export function checkPermissionRandom() {
+    const requestBody = {
+        metadata: {
+            schema_version: "",
+            depth: 100
+        },
+        entity: {
+            type: randomItem(entitiesTypes),
+            id: randomIntBetween(1, 1000000).toString(),
+        },
+        permission: randomItem(actions),
+        subject: {
+            type: "user",
+            id: randomIntBetween(1, 1000000).toString(),
+        }
+    };
+    const res = http.post(baseUrl + "/permissions/check", JSON.stringify(requestBody), { tags: { type: 'CHECK' } });
+    // console.log(res)
+    checkStatus(res);
+    checkAllowed(JSON.parse(res.body));
+    checkDenied(JSON.parse(res.body));
+    checkCacheHit(JSON.parse(res.body));
+}
 // export function handleSummary(data) {
 //     return {
 //         'summary.json': JSON.stringify(data), //the default data object
@@ -232,11 +233,6 @@ function updatePermify(entityType, relation, entityPerUser, relationships) {
         console.log(`User ${relation} on ${entityPerUser} ${entityType} Progress: ${progress}%`);
     }
 
-    // completedRequests++;
-    // const progress = Math.floor((completedRequests / totalRequests) * 100);
-    // const progressBar = "[" + "=".repeat(progress) + "-".repeat(100 - progress) + "]";
-    // const progressText = `${progress.toString().padStart(3, "0")}/${totalRequests.toString().padStart(3, "0")} req`;
-    // console.log(`${progressBar} ${progressText}`);
 }
 
 function generateRelationshipsData(usersSize, relation, entityType, entityPerUser) {
