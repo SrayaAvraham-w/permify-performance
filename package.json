@@ -12,9 +12,11 @@
     "init": "node ./initData.js",
     "k6-login": "k6 login cloud --token $(grep K6_CLOUD_TOKEN .env | cut -d '=' -f2)",
     "pretest": "npm run reset && npm run init",
-    "test:dev:standart": "dotenv -e .env.standart -e .env.development -- cross-var npm run pretest && dotenv -e .env.standart -e .env.development -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js",
-    "test:dev:stress": "dotenv -e .env.stress -e .env.development -- cross-var npm run pretest && dotenv -e .env.stress -e .env.development -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% permifyTest.js",
-    "test:local:standart": "dotenv -e .env.standart npm run pretest && dotenv -e .env.standart -- cross-var k6 run -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js",
-    "test:local:stress": "dotenv -e .env.stress npm run pretest && dotenv -e .env.stress -- cross-var k6 run -e CONFIG_FILE=$(pwd)/%CONFIG_FILE% -e SUMMARY_FILE=$(pwd)/%SUMMARY_FILE% permifyTest.js"
+    "test:dev:standart": "TEST_TYPE=standart npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=standart permifyTest.js",
+    "test:dev:stress": "TEST_TYPE=strees npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=stress  permifyTest.js",
+    "test:local:standart": "TEST_TYPE=standart npm run pretest && dotenv -e .env.standart -- cross-var k6 run -e CONFIG_FILE=./%CONFIG_FILE% -e SUMMARY_FILE=./%SUMMARY_FILE% permifyTest.js",
+    "test:local:stress": "TEST_TYPE=strees npm run pretest && dotenv -e .env -- cross-var k6 run -e TEST_TYPE=stress permifyTest.js",
+    "test:local": "npm run pretest && dotenv -e .env -- cross-var k6 run -e TEST_TYPE=%TEST_TYPE% permifyTest.js",
+    "test:dev": "npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=%TEST_TYPE% permifyTest.js"
   }
 }

@@ -8,17 +8,15 @@ import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporte
 
 let sum;
 const loadConfig = () => {
-    sum = require(`${__ENV.SUMMARY_FILE}`).default;
-    return require(`${__ENV.CONFIG_FILE}`);
+    sum = require(`./${__ENV.TEST_TYPE}Summary.js`).default;
+    return require(`./${__ENV.TEST_TYPE}Config.js`);
 }
 
-const { entitiesTypes, relations, actions, entities, relationshipsGroups, scenarios, testName } = loadConfig();
+const { entitiesTypes, relations, actions, entities, scenarios, testName } = loadConfig();
 
 const tenant = "loadTest";
 const host = "http://localhost:3476";
 const baseUrl = `${__ENV.PERMIFY_HOST || host}/v1/tenants/${tenant}`;
-
-
 
 export const options = {
     ext: {
@@ -43,9 +41,9 @@ export const options = {
 };
 
 export function setup() {
-    console.log({ baseUrl, testName });
+    console.log({ baseUrl, testName, sum });
     // relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser))
-    return sum;
+    // return sum;
 }
 
 const checkStatus = (res) => check(res, { 'is status 200': (r) => r.status === 200 }, { check: "status" });
@@ -75,7 +73,7 @@ export function deleteRelationship() {
     const res = http.post(baseUrl + "/relationships/delete", JSON.stringify(requestBody), { tags: { type: 'WRITE' } });
 }
 
-export function checkPermission(sum) {
+export function checkPermission() {
     const entity = randomItem(entitiesTypes);
     const id = randomIntBetween(1, Math.min(sum[entity], entities[entity].count)).toString()
     const requestBody = {
@@ -100,7 +98,7 @@ export function checkPermission(sum) {
     checkCacheHit(JSON.parse(res.body));
 }
 
-export function lookupEntity(sum) {
+export function lookupEntity() {
     const entity = randomItem(entitiesTypes);
     const requestBody = {
         metadata: {
@@ -198,73 +196,73 @@ export function checkPermissionRandom() {
 //     return range;
 // }
 
-const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
+// const arrayRange = (start, length, max) => Array.from({ length }, (value, index) => ((start + index) % max || max).toString());
 
-function updatePermify(entityType, relation, entityPerUser, relationships) {
-    const chunkSize = 100;
-    const chunks = [];
+// function updatePermify(entityType, relation, entityPerUser, relationships) {
+//     const chunkSize = 100;
+//     const chunks = [];
 
-    for (let i = 0; i < relationships.length; i += chunkSize) {
-        chunks.push(relationships.slice(i, i + chunkSize));
-    }
+//     for (let i = 0; i < relationships.length; i += chunkSize) {
+//         chunks.push(relationships.slice(i, i + chunkSize));
+//     }
 
-    const results = chunks.map((chunk) => {
-        return {
-            method: 'POST',
-            url: baseUrl + "/relationships/write",
-            body: JSON.stringify({
-                metadata: {
-                    schema_version: "",
-                },
-                tuples: chunk
-            })
-        }
-    });
+//     const results = chunks.map((chunk) => {
+//         return {
+//             method: 'POST',
+//             url: baseUrl + "/relationships/write",
+//             body: JSON.stringify({
+//                 metadata: {
+//                     schema_version: "",
+//                 },
+//                 tuples: chunk
+//             })
+//         }
+//     });
 
-    const batchSize = 50;
-    const totalResults = results.length;
-    let completedResults = 0;
-    for (let i = 0; i < results.length; i += batchSize) {
-        const batch = results.slice(i, i + batchSize);
-        http.batch(batch);
+//     const batchSize = 50;
+//     const totalResults = results.length;
+//     let completedResults = 0;
+//     for (let i = 0; i < results.length; i += batchSize) {
+//         const batch = results.slice(i, i + batchSize);
+//         http.batch(batch);
 
-        completedResults += batch.length;
-        const progress = Math.floor((completedResults / totalResults) * 100);
-        console.log(`User ${relation} on ${entityPerUser} ${entityType} Progress: ${progress}%`);
-    }
+//         completedResults += batch.length;
+//         const progress = Math.floor((completedResults / totalResults) * 100);
+//         console.log(`User ${relation} on ${entityPerUser} ${entityType} Progress: ${progress}%`);
+//     }
 
-}
+// }
 
-function generateRelationshipsData(usersSize, relation, entityType, entityPerUser) {
-    const { user } = entities;
-    // let usersIds = getEntityIdsChunk(user, usersSize);
-    const usersIds = arrayRange(user.currentId, usersSize, user.count)
-    user.currentId = Number(usersIds[usersIds.length - 1]) + 1
-    let initialData = [];
-    sum[entityType] = sum[entityType] ? sum[entityType] + (usersIds.length * entityPerUser) : usersIds.length * entityPerUser;
-    sum.user += usersIds.length
-    usersIds.forEach(userId => {
-        // let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
-        const entity = entities[entityType]
-        const entitiesIds = arrayRange(entity.currentId, entityPerUser, entity.count)
-        entity.currentId = Number(entitiesIds[entitiesIds.length - 1]) + 1
-        for (let index = 0; index < entityPerUser; index++) {
-            let data = {
-                entity: {
-                    type: entityType,
-                    id: entitiesIds[index]
-                },
-                relation: relation,
-                subject: {
-                    type: 'user',
-                    id: userId,
-                    relation: ''
-                }
-            };
+// function generateRelationshipsData(usersSize, relation, entityType, entityPerUser) {
+//     const { user } = entities;
+//     // let usersIds = getEntityIdsChunk(user, usersSize);
+//     const usersIds = arrayRange(user.currentId, usersSize, user.count)
+//     user.currentId = Number(usersIds[usersIds.length - 1]) + 1
+//     let initialData = [];
+//     sum[entityType] = sum[entityType] ? sum[entityType] + (usersIds.length * entityPerUser) : usersIds.length * entityPerUser;
+//     sum.user += usersIds.length
+//     usersIds.forEach(userId => {
+//         // let entitiesIds = getEntityIdsChunk(entities[entityType], entityPerUser);
+//         const entity = entities[entityType]
+//         const entitiesIds = arrayRange(entity.currentId, entityPerUser, entity.count)
+//         entity.currentId = Number(entitiesIds[entitiesIds.length - 1]) + 1
+//         for (let index = 0; index < entityPerUser; index++) {
+//             let data = {
+//                 entity: {
+//                     type: entityType,
+//                     id: entitiesIds[index]
+//                 },
+//                 relation: relation,
+//                 subject: {
+//                     type: 'user',
+//                     id: userId,
+//                     relation: ''
+//                 }
+//             };
 
-            initialData.push(data);
-        }
-    });
-    updatePermify(entityType, relation, entityPerUser, initialData);
-    // return initialData;
-}
+//             initialData.push(data);
+//         }
+//     });
+//     updatePermify(entityType, relation, entityPerUser, initialData);
+//     // return initialData;
+// }

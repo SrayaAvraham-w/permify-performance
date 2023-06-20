@@ -2,7 +2,7 @@ import axios from 'axios';
 import fs from 'fs';
 import 'dotenv/config';
 
-const { entities, relationshipsGroups, testName } = await import(`./${process.env.CONFIG_FILE}`)
+const { entities, relationshipsGroups, testName } = await import(`./${process.env.CONFIG_FILE || process.env.TEST_TYPE}Config.js`)
 const tenant = "loadTest";
 const host = "http://localhost:3476";
 const baseUrl = `${process.env.PERMIFY_HOST || host}/v1/tenants/${tenant}`;
@@ -83,7 +83,7 @@ async function saveDataToFile(data, filePath) {
 try {
 
     await Promise.all(relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser)))
-    const filePath = process.env.SUMMARY_FILE;
+    const filePath = `${process.env.TEST_TYPE}Summary.js`;
     await saveDataToFile(sum, filePath);
     console.log('File saved successfully.');
 } catch (error) {
