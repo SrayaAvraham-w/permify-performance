@@ -22,25 +22,25 @@ export const entities = {
 
 export const relationshipsGroups = [
     {
-        users: 150000,
+        users: 500000,
         entity: "subscription",
         entityPerUser: 1,
         relation: "manager"
     },
     {
-        users: 1500,
+        users: 15000,
         entity: "subscription",
         entityPerUser: 2,
         relation: "manager"
     },
     {
-        users: 500,
+        users: 5000,
         entity: "subscription",
         entityPerUser: 1,
         relation: "viewer"
     },
     {
-        users: 3000,
+        users: 30000,
         entity: "site",
         entityPerUser: 1,
         relation: "manager"
@@ -57,7 +57,7 @@ export const scenarios = {
     checkPermission: {
         executor: "constant-arrival-rate",
         exec: "checkPermission",
-        preAllocatedVUs: 5,
+        preAllocatedVUs: 10,
         duration,
         rate: 100,
         timeUnit: '2s',
@@ -65,9 +65,9 @@ export const scenarios = {
     lookupEntity: {
         executor: "constant-arrival-rate",
         exec: "lookupEntity",
-        preAllocatedVUs: 5,
+        preAllocatedVUs: 10,
         duration,
-        rate: 100,
+        rate: 500,
         timeUnit: '1m',
     },
     writeRelationshipRandom: {
@@ -86,12 +86,12 @@ export const scenarios = {
         rate: 50,
         timeUnit: '1m',
     },
-    checkPermissionRandom: {
-        executor: "constant-arrival-rate",
-        exec: "checkPermissionRandom",
-        preAllocatedVUs: 5,
-        duration,
-        rate: 10,
-        timeUnit: '1m',
-    }
+    // checkPermissionRandom: {
+    //     executor: "constant-arrival-rate",
+    //     exec: "checkPermissionRandom",
+    //     preAllocatedVUs: 5,
+    //     duration,
+    //     rate: 10,
+    //     timeUnit: '1m',
+    // }
 }
