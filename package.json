@@ -2,6 +2,7 @@
   "type": "module",
   "dependencies": {
     "axios": "^1.4.0",
+    "axios-retry": "^3.5.0",
     "cross-var": "^1.1.0",
     "dotenv": "^16.3.1",
     "dotenv-cli": "^7.2.1",
@@ -10,13 +11,7 @@
   "scripts": {
     "reset": "node ./clearData.cjs",
     "init": "node ./initData.js",
-    "k6-login": "k6 login cloud --token $(grep K6_CLOUD_TOKEN .env | cut -d '=' -f2)",
     "pretest": "npm run reset && npm run init",
-    "test:dev:standart": "TEST_TYPE=standart npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=standart permifyTest.js",
-    "test:dev:stress": "TEST_TYPE=strees npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=stress  permifyTest.js",
-    "test:local:standart": "TEST_TYPE=standart npm run pretest && dotenv -e .env.standart -- cross-var k6 run -e CONFIG_FILE=./%CONFIG_FILE% -e SUMMARY_FILE=./%SUMMARY_FILE% permifyTest.js",
-    "test:local:stress": "TEST_TYPE=strees npm run pretest && dotenv -e .env -- cross-var k6 run -e TEST_TYPE=stress permifyTest.js",
-    "test:local": "npm run pretest && dotenv -e .env -- cross-var k6 run -e TEST_TYPE=%TEST_TYPE% permifyTest.js",
-    "test:dev": "npm run pretest && dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=%TEST_TYPE% permifyTest.js"
+    "test": "dotenv -e .env -- cross-var k6 run -e PERMIFY_HOST=%PERMIFY_HOST% -e TEST_TYPE=%TEST_TYPE% permifyTest.js"
   }
 }

@@ -1,7 +1,8 @@
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 import fs from 'fs';
 import 'dotenv/config';
-
+axiosRetry(axios, { retries: 5, retryDelay: axiosRetry.exponentialDelay, onRetry: (retry, { message }) => console.log({ retry, message }) });
 const { entities, relationshipsGroups, testName } = await import(`./${process.env.CONFIG_FILE || process.env.TEST_TYPE}Config.js`)
 const tenant = "loadTest";
 const host = "http://localhost:3476";
@@ -30,6 +31,7 @@ async function updatePermify(entityType, relation, entityPerUser, relationships)
     let completedResults = 0;
     for (let i = 0; i < results.length; i += batchSize) {
         const batch = results.slice(i, i + batchSize);
+        //TODO retry
         await Promise.all(batch.map(req => axios.post(baseUrl + "/relationships/write", req)));
         completedResults += batch.length;
         const progress = Math.floor((completedResults / totalResults) * 100);
@@ -81,7 +83,8 @@ async function saveDataToFile(data, filePath) {
 }
 
 try {
-
+    console.log({ baseUrl })
+    console.log(relationshipsGroups.reduce((acc, obj) => acc + (obj.users * obj.entityPerUser), 0));
     await Promise.all(relationshipsGroups.map(group => generateRelationshipsData(group.users, group.relation, group.entity, group.entityPerUser)))
     const filePath = `${process.env.TEST_TYPE}Summary.js`;
     await saveDataToFile(sum, filePath);
